@@ -720,13 +720,13 @@ function goldIcon(){
   return L.divIcon({ className:'', html:'<div class="map-marker"></div>', iconSize:[16,16] });
 }
 
-async function openCityMap(lat, lon, label){
+async function openCityMap(lat, lon, label, zoom){
   document.getElementById('mapTitle').textContent = label || 'Esplora';
   mapSectionEl.classList.add('open');
   mapSectionEl.scrollIntoView({ behavior:'smooth', block:'start' });
 
   ensureMap(lat, lon);
-  leafletMap.setView([lat, lon], 16);
+  leafletMap.setView([lat, lon], zoom || 16);
   setTimeout(() => leafletMap.invalidateSize(), 200);
 
   await loadMapArea(lat, lon);
@@ -845,6 +845,27 @@ function escapeHtml(str){
   d.textContent = str;
   return d.innerHTML;
 }
+
+/* ================= APERTURA DA LINK ESTERNO =================
+   Esempio: cicerone-rho.vercel.app/?city=Cefalù&lat=38.0396&lon=14.0217&zoom=14
+   Apre subito la mappa della città e cerca le opere, senza toccare nulla.
+   Funziona anche con ?city=Noto da solo: in quel caso cerca il nome su OpenStreetMap. */
+(function openFromLink(){
+  const q = new URLSearchParams(location.search);
+  const lat = parseFloat(q.get('lat')), lon = parseFloat(q.get('lon'));
+  const city = q.get('city') || q.get('q');
+  const zoom = parseInt(q.get('zoom'), 10) || 15;
+
+  if (isFinite(lat) && isFinite(lon)) {
+    openCityMap(lat, lon, city || 'Esplora', zoom);
+    return;
+  }
+  if (city) {
+    const box = document.getElementById('manualQuery');
+    if (box) { box.value = city; manualForm.classList.add('open'); }
+    geocodeAndSearch();
+  }
+})();
 </script>
 
 </body>
