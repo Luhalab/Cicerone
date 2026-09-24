@@ -42,9 +42,9 @@
   /* ---------- HERO ---------- */
   .hero{
     background:
-      radial-gradient(600px 340px at 12% 15%, rgba(107,87,56,0.16), transparent 60%),
-      radial-gradient(500px 300px at 90% 80%, rgba(107,87,56,0.14), transparent 60%),
-      linear-gradient(160deg, #EADDB6 0%, #DCC89A 55%, #CBB484 100%);
+      radial-gradient(600px 340px at 12% 15%, rgba(60,45,24,0.22), transparent 60%),
+      radial-gradient(500px 300px at 90% 80%, rgba(60,45,24,0.2), transparent 60%),
+      linear-gradient(160deg, #D9C39A 0%, #C2A374 50%, #A9835A 100%);
     color:var(--ink);
     padding:34px 24px 36px;
     text-align:center;
@@ -57,13 +57,13 @@
     content:"";
     position:absolute; inset:0;
     background-image:repeating-linear-gradient(45deg,
-      rgba(28,23,16,0.045) 0px, rgba(28,23,16,0.045) 1px,
+      rgba(28,23,16,0.07) 0px, rgba(28,23,16,0.07) 1px,
       transparent 1px, transparent 13px);
     pointer-events:none;
   }
   .hero-deco{
     position:absolute;
-    border:1px solid rgba(107,87,56,0.22);
+    border:1px solid rgba(58,46,28,0.3);
     border-radius:50%;
     pointer-events:none;
   }
@@ -71,17 +71,19 @@
   .hero-deco--2{ width:230px; height:230px; bottom:-110px; right:-90px; border-style:dashed; }
   .hero-sketch{
     position:absolute;
-    opacity:0.4;
+    opacity:0.5;
     pointer-events:none;
   }
   .hero-sketch line, .hero-sketch path, .hero-sketch circle{
-    stroke:#6B5738;
+    stroke:#3A2E1C;
     fill:none;
     stroke-width:1.1;
     stroke-linecap:round;
   }
   .hero-sketch--wing{ width:118px; top:14px; left:-14px; transform:rotate(-8deg); }
   .hero-sketch--gear{ width:96px; bottom:8px; right:-10px; }
+  .hero-sketch--eye{ width:100px; top:8px; right:-18px; }
+  .hero-sketch--spiral{ width:78px; bottom:120px; left:-8px; }
   .hero-content{ position:relative; }
   .hero-emblem{
     display:block;
@@ -95,54 +97,67 @@
     mix-blend-mode:multiply;
     filter:sepia(12%) contrast(104%);
     cursor:pointer;
-    transition:transform 0.15s ease, opacity 0.15s ease;
+    transition:transform 0.2s ease, box-shadow 0.2s ease, opacity 0.15s ease;
     color:transparent;
+    box-shadow:
+      0 0 0 5px rgba(255,252,240,0.4),
+      0 10px 24px -10px rgba(28,23,16,0.55);
   }
-  .hero-emblem:hover{ opacity:0.85; }
-  .hero-emblem:active{ transform:scale(0.97); }
+  .hero-emblem:hover{
+    opacity:0.9;
+    transform:translateY(-2px);
+    box-shadow:
+      0 0 0 5px rgba(255,252,240,0.45),
+      0 14px 28px -10px rgba(28,23,16,0.6);
+  }
+  .hero-emblem:active{ transform:translateY(0) scale(0.98); }
+  .hero-flourish{
+    width:74px; height:10px;
+    margin:0 auto 16px;
+    opacity:0.75;
+  }
+  .hero-flourish line{ stroke:var(--gold); stroke-width:1; }
+  .hero-flourish circle{ fill:var(--gold); }
   .wordmark{
     font-size:clamp(2.4rem, 9vw, 3.1rem);
     font-weight:500;
     font-style:italic;
-    letter-spacing:0.01em;
-    margin:0 0 8px;
+    letter-spacing:0.015em;
+    margin:0 0 14px;
     line-height:1;
+    text-shadow:0 1px 0 rgba(255,255,255,0.25);
   }
   .tagline{
     font-size:0.98rem;
-    color:#5C4B30;
+    color:#43341F;
     max-width:32ch;
-    margin:0 auto 26px;
+    margin:0 auto 30px;
+    line-height:1.6;
+  }
+  .tap-hint{
+    font-size:0.82rem;
+    font-style:italic;
+    letter-spacing:0.02em;
+    color:#4A3B24;
+    max-width:26ch;
+    margin:16px auto 30px;
     line-height:1.5;
   }
-  .btn-primary{
-    background:var(--gold);
-    color:var(--cream);
-    border:none;
-    font-family:'Archivo',sans-serif;
-    font-weight:600;
-    font-size:1rem;
-    padding:15px 30px;
-    cursor:pointer;
-    letter-spacing:0.01em;
-    transition:transform 0.15s ease, background 0.15s ease;
-  }
-  .btn-primary:active{ transform:scale(0.97); }
-  .btn-primary:hover{ background:#A47E33; }
-  .btn-primary:disabled{ opacity:0.55; cursor:progress; }
 
   .manual-link{
     display:block;
     margin-top:18px;
     font-size:0.85rem;
-    color:#6B5738;
+    color:#4A3B24;
     text-decoration:underline;
     text-underline-offset:3px;
     background:none;
     border:none;
     cursor:pointer;
     font-family:inherit;
+    transition:opacity 0.15s ease;
   }
+  .manual-link:hover{ opacity:0.7; }
   .manual-form{
     display:none;
     margin-top:16px;
@@ -153,7 +168,7 @@
   .manual-form.open{ display:flex; }
   .manual-form input{
     width:220px;
-    padding:9px 10px;
+    padding:10px 12px;
     background:rgba(255,252,240,0.55);
     border:1px solid rgba(107,87,56,0.4);
     color:var(--ink);
@@ -161,13 +176,16 @@
     font-size:0.9rem;
   }
   .manual-form button{
-    padding:9px 16px;
+    padding:10px 18px;
     background:transparent;
     border:1px solid var(--gold);
-    color:#6B5738;
+    color:#4A3B24;
     cursor:pointer;
     font-family:'Archivo',sans-serif;
+    transition:background 0.15s ease, transform 0.15s ease;
   }
+  .manual-form button:hover{ background:rgba(185,143,62,0.12); }
+  .manual-form button:active{ transform:scale(0.97); }
 
   /* ---------- MAPPA CITTÀ ---------- */
   .map-section{
@@ -266,6 +284,7 @@
   .card-title{
     font-size:1.4rem;
     font-weight:500;
+    letter-spacing:0.005em;
     margin:0 0 10px;
     line-height:1.25;
   }
@@ -279,6 +298,7 @@
     flex-shrink:0;
     border:1px solid #CBC0A0;
     background:var(--parchment-dim);
+    box-shadow:0 6px 14px -10px rgba(28,23,16,0.5);
   }
   .card-text{
     font-size:0.94rem;
@@ -307,8 +327,10 @@
     cursor:pointer;
     background:none;
     font-family:inherit;
+    transition:transform 0.15s ease, background 0.15s ease, color 0.15s ease;
   }
-  .ai-btn:hover{ background:var(--gold); color:var(--dusk-deep); }
+  .ai-btn:hover{ background:var(--gold); color:var(--dusk-deep); transform:translateY(-1px); }
+  .ai-btn:active{ transform:translateY(0); }
   .ai-btn:disabled{ opacity:0.5; cursor:progress; }
   .ai-story{
     margin-top:12px;
@@ -331,18 +353,24 @@
   }
   .btn-secondary{
     background:transparent;
-    color:#5C4B30;
+    color:#43341F;
     border:1px solid var(--gold);
     font-family:'Archivo',sans-serif;
     font-weight:600;
     font-size:0.92rem;
     padding:12px 24px;
     cursor:pointer;
+    transition:transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   }
-  .btn-secondary:hover{ background:rgba(107,87,56,0.08); }
+  .btn-secondary:hover{
+    background:rgba(107,87,56,0.08);
+    transform:translateY(-1px);
+    box-shadow:0 6px 14px -8px rgba(28,23,16,0.4);
+  }
+  .btn-secondary:active{ transform:translateY(0); }
   .cost-note{
     font-size:0.78rem;
-    color:#6B5738;
+    color:#4A3B24;
     margin-top:10px;
     max-width:34ch;
     margin-left:auto;
@@ -375,7 +403,7 @@
   footer a{ color:var(--patina); }
 
   @media (prefers-reduced-motion: reduce){
-    .btn-primary{ transition:none; }
+    .hero-emblem{ transition:none; }
   }
 </style>
 </head>
@@ -408,14 +436,32 @@
     <line x1="28" y1="68" x2="20" y2="76"/>
   </svg>
 
+  <svg class="hero-sketch hero-sketch--eye" viewBox="0 0 90 60" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="45" cy="30" rx="40" ry="22"/>
+    <circle cx="45" cy="30" r="10"/>
+    <circle cx="45" cy="30" r="3"/>
+    <line x1="8" y1="18" x2="2" y2="9"/>
+    <line x1="16" y1="9" x2="11" y2="1"/>
+    <line x1="78" y1="15" x2="85" y2="6"/>
+  </svg>
+
+  <svg class="hero-sketch hero-sketch--spiral" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <path d="M40 40 m -30,0 a30,30 0 1,1 60,0 a22,22 0 1,1 -44,0 a14,14 0 1,1 28,0 a7,7 0 1,1 -14,0"/>
+  </svg>
+
   <div class="hero-content">
+  <h1 class="wordmark">Cicerone</h1>
+  <svg class="hero-flourish" viewBox="0 0 74 10" xmlns="http://www.w3.org/2000/svg">
+    <line x1="0" y1="5" x2="30" y2="5"/>
+    <circle cx="37" cy="5" r="2.5"/>
+    <line x1="44" y1="5" x2="74" y2="5"/>
+  </svg>
+  <p class="tagline">Punta il telefono su ciò che ti circonda: chiese, palazzi, statue, fontane. Ti racconto cosa stai guardando.</p>
   <img class="hero-emblem" id="heroEmblem"
        src="vitruvian.jpg"
        alt="Uomo Vitruviano, Leonardo da Vinci — tocca per cercare vicino a te"
        role="button" tabindex="0">
-  <h1 class="wordmark">Cicerone</h1>
-  <p class="tagline">Punta il telefono su ciò che ti circonda: chiese, palazzi, statue, fontane. Ti racconto cosa stai guardando.</p>
-  <button class="btn-primary" id="locateBtn">Scopri cosa mi circonda</button>
+  <p class="tap-hint" id="tapHint">Tocca l'Uomo Vitruviano per scoprire cosa c'è intorno a te</p>
   <button class="manual-link" id="manualToggle">Esplora una città</button>
   <div class="manual-form" id="manualForm">
     <input type="text" id="manualQuery" placeholder="Città, piazza, quartiere…">
@@ -454,7 +500,7 @@
 </footer>
 
 <script>
-const locateBtn = document.getElementById('locateBtn');
+const tapHint = document.getElementById('tapHint');
 const resultsEl = document.getElementById('placeResults');
 const photoResultEl = document.getElementById('photoResult');
 const manualToggle = document.getElementById('manualToggle');
@@ -480,15 +526,15 @@ const PROJECT_CHAT_URL = 'https://claude.ai/project/01a0cfb5-9c9c-71ae-9b76-dea6
 manualToggle.addEventListener('click', () => manualForm.classList.toggle('open'));
 
 const heroEmblem = document.getElementById('heroEmblem');
-heroEmblem.addEventListener('click', () => locateBtn.click());
+heroEmblem.addEventListener('click', () => startNearbySearch());
 heroEmblem.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    locateBtn.click();
+    startNearbySearch();
   }
 });
 
-locateBtn.addEventListener('click', () => {
+function startNearbySearch(){
   if (!navigator.geolocation) {
     showStatus('Il tuo browser non supporta la geolocalizzazione. Prova a cercare un indirizzo qui sopra.');
     return;
@@ -502,7 +548,7 @@ locateBtn.addEventListener('click', () => {
     },
     { enableHighAccuracy:true, timeout:10000 }
   );
-});
+}
 
 manualGo.addEventListener('click', () => geocodeAndSearch());
 
@@ -540,8 +586,11 @@ async function geocodeAndSearch(){
 }
 
 function setLoading(isLoading){
-  locateBtn.disabled = isLoading;
-  locateBtn.textContent = isLoading ? 'Cerco intorno a te…' : 'Scopri cosa mi circonda';
+  heroEmblem.style.opacity = isLoading ? '0.6' : '';
+  heroEmblem.style.cursor = isLoading ? 'progress' : 'pointer';
+  tapHint.textContent = isLoading
+    ? 'Cerco intorno a te…'
+    : "Tocca l'Uomo Vitruviano per scoprire cosa c'è intorno a te";
   if (isLoading) showStatus('Cerco chiese, palazzi e monumenti nei dintorni…');
 }
 
@@ -606,8 +655,6 @@ async function runSearch(lat, lon){
 
 function renderResults(items){
   setLoading(false);
-  locateBtn.textContent = 'Cerca di nuovo qui';
-  locateBtn.disabled = false;
 
   resultsEl.innerHTML = items.map((it, i) => `
     <div class="card">
