@@ -12,6 +12,9 @@ La funzione `/api/enrich.js` gira solo sul server di Vercel: la chiave API non �
 ## Da personalizzare prima del deploy
 Nel file `index.html`, cerca la costante `PROJECT_CHAT_URL` e sostituiscila con l'URL reale di questo progetto su claude.ai (apri il progetto "Guida D'Arte" e copia l'indirizzo dalla barra del browser). Serve solo come fallback quando la condivisione diretta non è supportata dal browser.
 
+## Icona e installazione come app
+Ho aggiunto `manifest.json` + icone (`icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `favicon-32.png`): sono i file che permettono al telefono di mostrare "Aggiungi alla schermata Home" con un'icona vera (rosa dei venti oro su verde) e aprire l'app a schermo intero, senza barra del browser. Vanno caricati nel repo insieme a `index.html`, nella stessa cartella principale — nessuna configurazione aggiuntiva richiesta.
+
 ## Deploy
 Nessun build step richiesto: `index.html` statico + una funzione serverless in `/api`.
 

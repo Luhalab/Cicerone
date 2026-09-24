@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cicerone — la tua guida d'arte</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#16211C">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cicerone">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
@@ -463,7 +470,7 @@ photoInput.addEventListener('change', () => {
   photoResultEl.innerHTML = `
     <div class="photo-card">
       <img src="${previewUrl}" alt="Foto scattata">
-      <p class="card-text">Condividi questa foto in una nuova chat del progetto: Claude ti dirà cosa stai guardando.</p>
+      <p class="card-text">Condividi questa foto: si aprirà in una nuova chat Claude. Per tenerla nel progetto, dopo usa "Aggiungi al progetto" dal menu della chat — oppure apri prima il progetto qui sotto e allega la foto lì.</p>
       <div class="card-actions">
         <button class="ai-btn" id="shareBtn">Condividi con Claude</button>
         <a href="${previewUrl}" download="dettaglio.jpg">Scarica foto</a>

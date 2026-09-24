@@ -1,0 +1,26 @@
+{
+  "name": "Cicerone — la tua guida d'arte",
+  "short_name": "Cicerone",
+  "description": "Scopri chiese, palazzi, statue e fontane intorno a te.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#16211C",
+  "theme_color": "#16211C",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
