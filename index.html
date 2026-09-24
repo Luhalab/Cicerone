@@ -41,41 +41,81 @@
 
   /* ---------- HERO ---------- */
   .hero{
-    background:radial-gradient(120% 90% at 50% -10%, #1E2C24 0%, var(--dusk) 55%, var(--dusk-deep) 100%);
-    color:var(--cream);
-    padding:56px 24px 44px;
+    background:
+      radial-gradient(600px 340px at 12% 15%, rgba(107,87,56,0.16), transparent 60%),
+      radial-gradient(500px 300px at 90% 80%, rgba(107,87,56,0.14), transparent 60%),
+      linear-gradient(160deg, #EADDB6 0%, #DCC89A 55%, #CBB484 100%);
+    color:var(--ink);
+    padding:34px 24px 36px;
     text-align:center;
     position:relative;
     overflow:hidden;
+    border-bottom:1px solid var(--gold);
+    box-shadow:inset 0 -14px 26px -22px rgba(28,23,16,0.45);
   }
-  .compass{
-    width:132px; height:132px;
-    margin:0 auto 22px;
-    opacity:0.92;
+  .hero::before{
+    content:"";
+    position:absolute; inset:0;
+    background-image:repeating-linear-gradient(45deg,
+      rgba(28,23,16,0.045) 0px, rgba(28,23,16,0.045) 1px,
+      transparent 1px, transparent 13px);
+    pointer-events:none;
   }
-  .compass line, .compass circle, .compass path{
-    stroke:var(--gold-soft);
+  .hero-deco{
+    position:absolute;
+    border:1px solid rgba(107,87,56,0.22);
+    border-radius:50%;
+    pointer-events:none;
+  }
+  .hero-deco--1{ width:360px; height:360px; top:-160px; left:-140px; }
+  .hero-deco--2{ width:230px; height:230px; bottom:-110px; right:-90px; border-style:dashed; }
+  .hero-sketch{
+    position:absolute;
+    opacity:0.4;
+    pointer-events:none;
+  }
+  .hero-sketch line, .hero-sketch path, .hero-sketch circle{
+    stroke:#6B5738;
     fill:none;
-    stroke-width:1;
+    stroke-width:1.1;
+    stroke-linecap:round;
   }
+  .hero-sketch--wing{ width:118px; top:14px; left:-14px; transform:rotate(-8deg); }
+  .hero-sketch--gear{ width:96px; bottom:8px; right:-10px; }
+  .hero > *{ position:relative; }
+  .hero-emblem{
+    display:block;
+    width:150px;
+    height:auto;
+    margin:0 auto 14px;
+    padding:6px;
+    border:1px solid rgba(107,87,56,0.35);
+    background:rgba(255,252,240,0.25);
+    mix-blend-mode:multiply;
+    filter:sepia(12%) contrast(104%);
+    cursor:pointer;
+    transition:transform 0.15s ease, opacity 0.15s ease;
+  }
+  .hero-emblem:hover{ opacity:0.85; }
+  .hero-emblem:active{ transform:scale(0.97); }
   .wordmark{
     font-size:clamp(2.4rem, 9vw, 3.1rem);
     font-weight:500;
     font-style:italic;
     letter-spacing:0.01em;
-    margin:0 0 10px;
+    margin:0 0 8px;
     line-height:1;
   }
   .tagline{
     font-size:0.98rem;
-    color:#CFC6AE;
+    color:#5C4B30;
     max-width:32ch;
-    margin:0 auto 34px;
+    margin:0 auto 26px;
     line-height:1.5;
   }
   .btn-primary{
     background:var(--gold);
-    color:var(--dusk-deep);
+    color:var(--cream);
     border:none;
     font-family:'Archivo',sans-serif;
     font-weight:600;
@@ -86,14 +126,14 @@
     transition:transform 0.15s ease, background 0.15s ease;
   }
   .btn-primary:active{ transform:scale(0.97); }
-  .btn-primary:hover{ background:var(--gold-soft); }
+  .btn-primary:hover{ background:#A47E33; }
   .btn-primary:disabled{ opacity:0.55; cursor:progress; }
 
   .manual-link{
     display:block;
     margin-top:18px;
     font-size:0.85rem;
-    color:#A79C7F;
+    color:#6B5738;
     text-decoration:underline;
     text-underline-offset:3px;
     background:none;
@@ -112,17 +152,17 @@
   .manual-form input{
     width:220px;
     padding:9px 10px;
-    background:#1E2C24;
-    border:1px solid #3B4A40;
-    color:var(--cream);
+    background:rgba(255,252,240,0.55);
+    border:1px solid rgba(107,87,56,0.4);
+    color:var(--ink);
     font-family:'Archivo',sans-serif;
     font-size:0.9rem;
   }
   .manual-form button{
     padding:9px 16px;
     background:transparent;
-    border:1px solid var(--gold-soft);
-    color:var(--gold-soft);
+    border:1px solid var(--gold);
+    color:#6B5738;
     cursor:pointer;
     font-family:'Archivo',sans-serif;
   }
@@ -285,22 +325,22 @@
   .photo-row{
     margin-top:22px;
     padding-top:20px;
-    border-top:1px solid #2D3B33;
+    border-top:1px solid rgba(107,87,56,0.25);
   }
   .btn-secondary{
     background:transparent;
-    color:var(--cream);
-    border:1px solid var(--gold-soft);
+    color:#5C4B30;
+    border:1px solid var(--gold);
     font-family:'Archivo',sans-serif;
     font-weight:600;
     font-size:0.92rem;
     padding:12px 24px;
     cursor:pointer;
   }
-  .btn-secondary:hover{ background:#1E2C24; }
+  .btn-secondary:hover{ background:rgba(107,87,56,0.08); }
   .cost-note{
     font-size:0.78rem;
-    color:#8E836A;
+    color:#6B5738;
     margin-top:10px;
     max-width:34ch;
     margin-left:auto;
@@ -340,16 +380,36 @@
 <body>
 
 <div class="hero">
-  <svg class="compass" viewBox="0 0 132 132" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="66" cy="66" r="58"/>
-    <circle cx="66" cy="66" r="2" fill="#C9A968"/>
-    <line x1="66" y1="6" x2="66" y2="26"/>
-    <line x1="66" y1="106" x2="66" y2="126"/>
-    <line x1="6" y1="66" x2="26" y2="66"/>
-    <line x1="106" y1="66" x2="126" y2="66"/>
-    <path d="M66 18 L72 62 L66 66 L60 62 Z" fill="#C9A968" stroke="none"/>
-    <path d="M66 114 L60 70 L66 66 L72 70 Z" fill="none"/>
+  <div class="hero-deco hero-deco--1"></div>
+  <div class="hero-deco hero-deco--2"></div>
+
+  <svg class="hero-sketch hero-sketch--wing" viewBox="0 0 118 70" xmlns="http://www.w3.org/2000/svg">
+    <path d="M4 60 C 20 30, 40 14, 60 6 C 78 -1, 96 4, 112 16"/>
+    <path d="M8 56 C 26 34, 44 22, 62 15"/>
+    <path d="M16 50 C 30 34, 46 25, 60 20"/>
+    <line x1="60" y1="6" x2="58" y2="22"/>
+    <line x1="72" y1="5" x2="68" y2="22"/>
+    <line x1="84" y1="7" x2="78" y2="23"/>
+    <line x1="96" y1="11" x2="88" y2="24"/>
   </svg>
+
+  <svg class="hero-sketch hero-sketch--gear" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="48" cy="48" r="26"/>
+    <circle cx="48" cy="48" r="9"/>
+    <line x1="48" y1="10" x2="48" y2="22"/>
+    <line x1="48" y1="74" x2="48" y2="86"/>
+    <line x1="10" y1="48" x2="22" y2="48"/>
+    <line x1="74" y1="48" x2="86" y2="48"/>
+    <line x1="20" y1="20" x2="28" y2="28"/>
+    <line x1="68" y1="68" x2="76" y2="76"/>
+    <line x1="76" y1="20" x2="68" y2="28"/>
+    <line x1="28" y1="68" x2="20" y2="76"/>
+  </svg>
+
+  <img class="hero-emblem" id="heroEmblem"
+       src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/700px-Da_Vinci_Vitruve_Luc_Viatour.jpg"
+       alt="Uomo Vitruviano, Leonardo da Vinci — tocca per cercare vicino a te"
+       role="button" tabindex="0">
   <h1 class="wordmark">Cicerone</h1>
   <p class="tagline">Punta il telefono su ciò che ti circonda: chiese, palazzi, statue, fontane. Ti racconto cosa stai guardando.</p>
   <button class="btn-primary" id="locateBtn">Scopri cosa mi circonda</button>
@@ -414,6 +474,15 @@ const refetchBtn = document.getElementById('refetchAreaBtn');
 const PROJECT_CHAT_URL = 'https://claude.ai/project/01a0cfb5-9c9c-71ae-9b76-dea636477f06';
 
 manualToggle.addEventListener('click', () => manualForm.classList.toggle('open'));
+
+const heroEmblem = document.getElementById('heroEmblem');
+heroEmblem.addEventListener('click', () => locateBtn.click());
+heroEmblem.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    locateBtn.click();
+  }
+});
 
 locateBtn.addEventListener('click', () => {
   if (!navigator.geolocation) {
