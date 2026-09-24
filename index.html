@@ -14,6 +14,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
     --ink:#1C1710;
@@ -124,6 +126,76 @@
     cursor:pointer;
     font-family:'Archivo',sans-serif;
   }
+
+  /* ---------- MAPPA CITTÀ ---------- */
+  .map-section{
+    display:none;
+  }
+  .map-section.open{ display:block; }
+  .map-header{
+    max-width:640px;
+    margin:0 auto;
+    padding:28px 20px 0;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .map-header h2{
+    font-size:1.3rem;
+    font-weight:500;
+    margin:0;
+  }
+  .map-header button{
+    background:none;
+    border:none;
+    color:var(--patina);
+    text-decoration:underline;
+    text-underline-offset:3px;
+    font-family:'Archivo',sans-serif;
+    font-size:0.85rem;
+    cursor:pointer;
+    padding:0;
+  }
+  #map{
+    width:100%;
+    height:46vh;
+    min-height:320px;
+    margin-top:16px;
+    filter:sepia(8%) saturate(85%);
+  }
+  .map-refetch{
+    position:relative;
+  }
+  .map-refetch button{
+    position:absolute;
+    top:12px; left:50%;
+    transform:translateX(-50%);
+    z-index:500;
+    background:var(--dusk);
+    color:var(--cream);
+    border:1px solid var(--gold-soft);
+    padding:8px 16px;
+    font-size:0.85rem;
+    font-family:'Archivo',sans-serif;
+    cursor:pointer;
+    display:none;
+  }
+  .map-refetch button.show{ display:block; }
+  .map-marker{
+    width:16px; height:16px;
+    background:var(--gold);
+    border:2px solid var(--cream);
+    border-radius:50%;
+    box-shadow:0 0 0 2px var(--dusk-deep);
+  }
+  .map-info{
+    max-width:640px;
+    margin:0 auto;
+    padding:0 20px 60px;
+  }
+  .map-info .results-status{ padding:30px 10px; }
 
   /* ---------- RESULTS ---------- */
   .results{
@@ -281,16 +353,30 @@
   <h1 class="wordmark">Cicerone</h1>
   <p class="tagline">Punta il telefono su ciò che ti circonda: chiese, palazzi, statue, fontane. Ti racconto cosa stai guardando.</p>
   <button class="btn-primary" id="locateBtn">Scopri cosa mi circonda</button>
-  <button class="manual-link" id="manualToggle">Cerca un indirizzo</button>
+  <button class="manual-link" id="manualToggle">Esplora una città</button>
   <div class="manual-form" id="manualForm">
-    <input type="text" id="manualQuery" placeholder="Via, piazza, città…">
-    <button id="manualGo">Cerca</button>
+    <input type="text" id="manualQuery" placeholder="Città, piazza, quartiere…">
+    <button id="manualGo">Esplora</button>
   </div>
 
   <div class="photo-row">
     <button class="btn-secondary" id="photoBtn">Fotografa un dettaglio</button>
     <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
     <p class="cost-note">Scatti la foto, poi la condividi in una nuova chat di questo progetto per farla analizzare — nessuna chiamata a pagamento dall'app.</p>
+  </div>
+</div>
+
+<div class="map-section" id="mapSection">
+  <div class="map-header">
+    <h2 class="serif" id="mapTitle">Esplora</h2>
+    <button id="closeMapBtn">Chiudi mappa</button>
+  </div>
+  <div class="map-refetch">
+    <div id="map"></div>
+    <button id="refetchAreaBtn">Cerca opere in questa zona</button>
+  </div>
+  <div class="map-info" id="mapInfo">
+    <div class="results-status">Tocca un punto dorato sulla mappa per vedere di cosa si tratta.</div>
   </div>
 </div>
 
@@ -313,6 +399,14 @@ const manualGo = document.getElementById('manualGo');
 const photoBtn = document.getElementById('photoBtn');
 const photoInput = document.getElementById('photoInput');
 let currentItems = [];
+
+// --- stato mappa ---
+let leafletMap = null;
+let markersLayer = null;
+let mapItems = [];
+const mapInfoEl = document.getElementById('mapInfo');
+const mapSectionEl = document.getElementById('mapSection');
+const refetchBtn = document.getElementById('refetchAreaBtn');
 
 // Incolla qui l'URL di QUESTO progetto Claude (apri il progetto "Guida D'Arte"
 // su claude.ai e copia l'indirizzo dalla barra del browser). Serve per il
@@ -347,25 +441,28 @@ async function geocodeAndSearch(){
   const query = document.getElementById('manualQuery').value.trim();
   if (!query) return;
 
-  setLoading(true);
-  showStatus('Cerco "' + query + '"…');
+  manualGo.disabled = true;
+  manualGo.textContent = 'Cerco…';
 
   try {
     const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query);
     const res = await fetch(url);
     const data = await res.json();
 
+    manualGo.disabled = false;
+    manualGo.textContent = 'Esplora';
+
     if (!data.length) {
-      setLoading(false);
-      showStatus('Non ho trovato "' + query + '". Prova a essere più preciso (es. aggiungi la città).');
+      alert('Non ho trovato "' + query + '". Prova a essere più preciso (es. aggiungi la città).');
       return;
     }
 
     const place = data[0];
-    runSearch(parseFloat(place.lat), parseFloat(place.lon));
+    openCityMap(parseFloat(place.lat), parseFloat(place.lon), place.display_name.split(',')[0]);
   } catch (e) {
-    setLoading(false);
-    showStatus('Ricerca dell\'indirizzo non riuscita. Riprova tra poco.');
+    manualGo.disabled = false;
+    manualGo.textContent = 'Esplora';
+    alert('Ricerca dell\'indirizzo non riuscita. Riprova tra poco.');
   }
 }
 
@@ -392,9 +489,11 @@ function formatDist(m){
   return m < 1000 ? Math.round(m) + ' m' : (m/1000).toFixed(1) + ' km';
 }
 
-async function fetchWiki(lang, lat, lon){
+async function fetchWiki(lang, lat, lon, radius, limit){
+  radius = radius || 1500;
+  limit = limit || 20;
   const url = `https://${lang}.wikipedia.org/w/api.php?action=query&generator=geosearch`
-    + `&ggscoord=${lat}%7C${lon}&ggsradius=1500&ggslimit=20`
+    + `&ggscoord=${lat}%7C${lon}&ggsradius=${radius}&ggslimit=${limit}`
     + `&prop=extracts|pageimages|coordinates&exintro=1&explaintext=1&exchars=280`
     + `&piprop=thumbnail&pithumbsize=200&format=json&origin=*`;
   const res = await fetch(url);
@@ -459,6 +558,10 @@ resultsEl.addEventListener('click', async (e) => {
   if (!btn) return;
   const item = currentItems[btn.dataset.index];
   if (!item) return;
+  await generateStory(item, btn, resultsEl);
+});
+
+async function generateStory(item, btn, container){
   btn.disabled = true;
   btn.textContent = 'Genero…';
   try {
@@ -469,7 +572,7 @@ resultsEl.addEventListener('click', async (e) => {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || 'Errore');
-    const slot = document.querySelector(`.ai-story-slot[data-slot="${btn.dataset.index}"]`);
+    const slot = container.querySelector(`.ai-story-slot[data-slot="${btn.dataset.index}"]`);
     slot.innerHTML = `<div class="ai-story"><div class="ai-story-label">Racconto AI</div>${escapeHtml(data.story)}</div>`;
     btn.remove();
   } catch (err) {
@@ -477,6 +580,108 @@ resultsEl.addEventListener('click', async (e) => {
     btn.textContent = '✨ Racconto AI';
     alert('Non sono riuscito a generare il racconto. Riprova.');
   }
+}
+
+/* ================= MAPPA CITTÀ ================= */
+
+function ensureMap(lat, lon){
+  if (leafletMap) return;
+  leafletMap = L.map('map', { zoomControl:true }).setView([lat, lon], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  }).addTo(leafletMap);
+  markersLayer = L.layerGroup().addTo(leafletMap);
+
+  leafletMap.on('moveend', () => refetchBtn.classList.add('show'));
+}
+
+function goldIcon(){
+  return L.divIcon({ className:'', html:'<div class="map-marker"></div>', iconSize:[16,16] });
+}
+
+async function openCityMap(lat, lon, label){
+  document.getElementById('mapTitle').textContent = label || 'Esplora';
+  mapSectionEl.classList.add('open');
+  mapSectionEl.scrollIntoView({ behavior:'smooth', block:'start' });
+
+  ensureMap(lat, lon);
+  leafletMap.setView([lat, lon], 16);
+  setTimeout(() => leafletMap.invalidateSize(), 200);
+
+  await loadMapArea(lat, lon);
+}
+
+async function loadMapArea(lat, lon){
+  refetchBtn.classList.remove('show');
+  mapInfoEl.innerHTML = '<div class="results-status">Cerco opere in quest\'area…</div>';
+
+  try {
+    let pages = await fetchWiki('it', lat, lon, 2500, 40);
+    if (pages.length === 0) pages = await fetchWiki('en', lat, lon, 2500, 40);
+
+    markersLayer.clearLayers();
+    mapItems = pages
+      .filter(p => p.coordinates && p.coordinates[0])
+      .map(p => ({
+        title: p.title,
+        extract: p.extract || '',
+        thumb: p.thumbnail ? p.thumbnail.source : null,
+        lat: p.coordinates[0].lat,
+        lon: p.coordinates[0].lon,
+        dist: haversine(lat, lon, p.coordinates[0].lat, p.coordinates[0].lon),
+        url: 'https://it.wikipedia.org/?curid=' + p.pageid
+      }));
+
+    if (mapItems.length === 0) {
+      mapInfoEl.innerHTML = '<div class="results-status">Nessuna opera catalogata trovata qui. Prova a spostare la mappa verso il centro storico.</div>';
+      return;
+    }
+
+    mapItems.forEach((it, i) => {
+      const marker = L.marker([it.lat, it.lon], { icon: goldIcon() }).addTo(markersLayer);
+      marker.on('click', () => showMapItem(i));
+    });
+
+    mapInfoEl.innerHTML = `<div class="results-status">${mapItems.length} opere trovate — tocca un punto dorato sulla mappa.</div>`;
+  } catch (e) {
+    mapInfoEl.innerHTML = '<div class="results-status">Ricerca non riuscita. Riprova tra poco.</div>';
+  }
+}
+
+function showMapItem(index){
+  const it = mapItems[index];
+  leafletMap.panTo([it.lat, it.lon]);
+
+  mapInfoEl.innerHTML = `
+    <div class="card">
+      <div class="card-meta">a ${formatDist(it.dist)} dal centro cercato</div>
+      <h2 class="card-title">${escapeHtml(it.title)}</h2>
+      <div class="card-body">
+        ${it.thumb ? `<img class="card-thumb" src="${it.thumb}" alt="${escapeHtml(it.title)}">` : ''}
+        <p class="card-text">${escapeHtml(it.extract) || 'Nessuna descrizione disponibile.'}</p>
+      </div>
+      <div class="card-actions">
+        <a href="${it.url}" target="_blank" rel="noopener">Leggi su Wikipedia</a>
+        <button class="ai-btn" data-index="${index}">✨ Racconto AI</button>
+      </div>
+      <div class="ai-story-slot" data-slot="${index}"></div>
+    </div>`;
+
+  mapInfoEl.querySelector('.ai-btn').addEventListener('click', (e) => {
+    generateStory(it, e.target, mapInfoEl);
+  });
+
+  mapInfoEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+refetchBtn.addEventListener('click', () => {
+  const c = leafletMap.getCenter();
+  loadMapArea(c.lat, c.lng);
+});
+
+document.getElementById('closeMapBtn').addEventListener('click', () => {
+  mapSectionEl.classList.remove('open');
 });
 
 photoBtn.addEventListener('click', () => photoInput.click());
