@@ -108,7 +108,7 @@
   }
   .manual-form.open{ display:flex; }
   .manual-form input{
-    width:130px;
+    width:220px;
     padding:9px 10px;
     background:#1E2C24;
     border:1px solid #3B4A40;
@@ -281,10 +281,9 @@
   <h1 class="wordmark">Cicerone</h1>
   <p class="tagline">Punta il telefono su ciò che ti circonda: chiese, palazzi, statue, fontane. Ti racconto cosa stai guardando.</p>
   <button class="btn-primary" id="locateBtn">Scopri cosa mi circonda</button>
-  <button class="manual-link" id="manualToggle">Inserisci coordinate manualmente</button>
+  <button class="manual-link" id="manualToggle">Cerca un indirizzo</button>
   <div class="manual-form" id="manualForm">
-    <input type="text" id="manualLat" placeholder="Latitudine">
-    <input type="text" id="manualLon" placeholder="Longitudine">
+    <input type="text" id="manualQuery" placeholder="Via, piazza, città…">
     <button id="manualGo">Cerca</button>
   </div>
 
@@ -324,7 +323,7 @@ manualToggle.addEventListener('click', () => manualForm.classList.toggle('open')
 
 locateBtn.addEventListener('click', () => {
   if (!navigator.geolocation) {
-    showStatus('Il tuo browser non supporta la geolocalizzazione. Prova con le coordinate manuali qui sopra.');
+    showStatus('Il tuo browser non supporta la geolocalizzazione. Prova a cercare un indirizzo qui sopra.');
     return;
   }
   setLoading(true);
@@ -332,22 +331,43 @@ locateBtn.addEventListener('click', () => {
     pos => runSearch(pos.coords.latitude, pos.coords.longitude),
     err => {
       setLoading(false);
-      showStatus('Non riesco ad accedere alla posizione (' + err.message + '). Prova con le coordinate manuali.');
+      showStatus('Non riesco ad accedere alla posizione (' + err.message + '). Prova a cercare un indirizzo.');
     },
     { enableHighAccuracy:true, timeout:10000 }
   );
 });
 
-manualGo.addEventListener('click', () => {
-  const lat = parseFloat(document.getElementById('manualLat').value);
-  const lon = parseFloat(document.getElementById('manualLon').value);
-  if (isNaN(lat) || isNaN(lon)) {
-    showStatus('Coordinate non valide.');
-    return;
-  }
-  setLoading(true);
-  runSearch(lat, lon);
+manualGo.addEventListener('click', () => geocodeAndSearch());
+
+document.getElementById('manualQuery').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') geocodeAndSearch();
 });
+
+async function geocodeAndSearch(){
+  const query = document.getElementById('manualQuery').value.trim();
+  if (!query) return;
+
+  setLoading(true);
+  showStatus('Cerco "' + query + '"…');
+
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query);
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.length) {
+      setLoading(false);
+      showStatus('Non ho trovato "' + query + '". Prova a essere più preciso (es. aggiungi la città).');
+      return;
+    }
+
+    const place = data[0];
+    runSearch(parseFloat(place.lat), parseFloat(place.lon));
+  } catch (e) {
+    setLoading(false);
+    showStatus('Ricerca dell\'indirizzo non riuscita. Riprova tra poco.');
+  }
+}
 
 function setLoading(isLoading){
   locateBtn.disabled = isLoading;
