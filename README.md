@@ -11,7 +11,10 @@ App web che, data la posizione GPS, trova chiese, palazzi, statue e altri monume
 La funzione `/api/enrich.js` gira solo sul server di Vercel: la chiave API non è mai nel codice né visibile nel repo.
 
 ## Immagine in home
-L'Uomo Vitruviano nella hero è la fotografia di Luc Viatour del disegno di Leonardo da Vinci (Gallerie dell'Accademia, Venezia), caricata su Wikimedia Commons come riproduzione fedele di un'opera di pubblico dominio. Viene caricata direttamente dai server di Wikimedia (`upload.wikimedia.org`), quindi serve connessione internet per vederla e non va scaricata/copiata nel repo.
+L'Uomo Vitruviano nella hero è la fotografia di Luc Viatour del disegno di Leonardo da Vinci (Gallerie dell'Accademia, Venezia), di pubblico dominio. Va scaricata a mano e aggiunta al repo (non è inclusa qui):
+1. Scarica: https://upload.wikimedia.org/wikipedia/commons/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg
+2. Rinominala **`vitruvian.jpg`**
+3. Mettila nella stessa cartella di `index.html`
 
 ## Da personalizzare prima del deploy
 Nel file `index.html`, cerca la costante `PROJECT_CHAT_URL` e sostituiscila con l'URL reale di questo progetto su claude.ai (apri il progetto "Guida D'Arte" e copia l'indirizzo dalla barra del browser). Serve solo come fallback quando la condivisione diretta non è supportata dal browser.

@@ -82,11 +82,12 @@
   }
   .hero-sketch--wing{ width:118px; top:14px; left:-14px; transform:rotate(-8deg); }
   .hero-sketch--gear{ width:96px; bottom:8px; right:-10px; }
-  .hero > *{ position:relative; }
+  .hero-content{ position:relative; }
   .hero-emblem{
     display:block;
     width:150px;
-    height:auto;
+    height:204px;
+    object-fit:contain;
     margin:0 auto 14px;
     padding:6px;
     border:1px solid rgba(107,87,56,0.35);
@@ -95,6 +96,7 @@
     filter:sepia(12%) contrast(104%);
     cursor:pointer;
     transition:transform 0.15s ease, opacity 0.15s ease;
+    color:transparent;
   }
   .hero-emblem:hover{ opacity:0.85; }
   .hero-emblem:active{ transform:scale(0.97); }
@@ -406,8 +408,9 @@
     <line x1="28" y1="68" x2="20" y2="76"/>
   </svg>
 
+  <div class="hero-content">
   <img class="hero-emblem" id="heroEmblem"
-       src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/Da_Vinci_Vitruve_Luc_Viatour.jpg/700px-Da_Vinci_Vitruve_Luc_Viatour.jpg"
+       src="vitruvian.jpg"
        alt="Uomo Vitruviano, Leonardo da Vinci — tocca per cercare vicino a te"
        role="button" tabindex="0">
   <h1 class="wordmark">Cicerone</h1>
@@ -423,6 +426,7 @@
     <button class="btn-secondary" id="photoBtn">Fotografa un dettaglio</button>
     <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
     <p class="cost-note">Scatti la foto, poi la condividi in una nuova chat di questo progetto per farla analizzare — nessuna chiamata a pagamento dall'app.</p>
+  </div>
   </div>
 </div>
 
