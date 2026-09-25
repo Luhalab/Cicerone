@@ -481,7 +481,7 @@ function startNearbyMap(){
   navigator.geolocation.getCurrentPosition(
     pos => {
       setLoading(false);
-      openCityMap(pos.coords.latitude, pos.coords.longitude, 'Vicino a te', 17, 1200);
+      openCityMap(pos.coords.latitude, pos.coords.longitude, 'Vicino a te', 17, 1800);
     },
     err => {
       setLoading(false);
@@ -599,8 +599,10 @@ async function fetchOverpassItems(lat, lon, radius){
   const query = `[out:json][timeout:25];(`
     + `node["historic"](around:${radius},${lat},${lon});`
     + `way["historic"](around:${radius},${lat},${lon});`
+    + `relation["historic"](around:${radius},${lat},${lon});`
     + `node["tourism"="artwork"](around:${radius},${lat},${lon});`
     + `node["amenity"="place_of_worship"](around:${radius},${lat},${lon});`
+    + `way["amenity"="place_of_worship"](around:${radius},${lat},${lon});`
     + `);out center tags;`;
 
   const res = await fetch('https://overpass-api.de/api/interpreter', {
@@ -614,11 +616,11 @@ async function fetchOverpassItems(lat, lon, radius){
       const elLat = el.lat != null ? el.lat : (el.center && el.center.lat);
       const elLon = el.lon != null ? el.lon : (el.center && el.center.lon);
       const tags = el.tags || {};
-      const name = tags.name || tags['name:it'];
-      if (elLat == null || elLon == null || !name) return null; // scarto i punti senza nome
+      if (elLat == null || elLon == null) return null;
+      const label = osmLabel(tags);
       return {
-        title: name,
-        extract: osmLabel(tags),
+        title: tags.name || tags['name:it'] || label,
+        extract: label,
         thumb: null,
         lat: elLat, lon: elLon,
         dist: haversine(lat, lon, elLat, elLon),
