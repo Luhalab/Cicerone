@@ -433,23 +433,20 @@
 
 <div class="results" id="results">
   <div id="photoResult"></div>
-  <div id="placeResults"></div>
 </div>
 
 <footer>
-  Descrizioni da Wikipedia (CC BY-SA) · nessuna chiamata a pagamento
+  Descrizioni da Wikipedia (CC BY-SA) e OpenStreetMap (© collaboratori) · nessuna chiamata a pagamento
 </footer>
 
 <script>
 const tapHint = document.getElementById('tapHint');
-const resultsEl = document.getElementById('placeResults');
 const photoResultEl = document.getElementById('photoResult');
 const manualToggle = document.getElementById('manualToggle');
 const manualForm = document.getElementById('manualForm');
 const manualGo = document.getElementById('manualGo');
 const photoBtn = document.getElementById('photoBtn');
 const photoInput = document.getElementById('photoInput');
-let currentItems = [];
 
 // --- stato mappa ---
 let leafletMap = null;
@@ -467,25 +464,28 @@ const PROJECT_CHAT_URL = 'https://claude.ai/project/01a0cfb5-9c9c-71ae-9b76-dea6
 manualToggle.addEventListener('click', () => manualForm.classList.toggle('open'));
 
 const heroEmblem = document.getElementById('heroEmblem');
-heroEmblem.addEventListener('click', () => startNearbySearch());
+heroEmblem.addEventListener('click', () => startNearbyMap());
 heroEmblem.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault();
-    startNearbySearch();
+    startNearbyMap();
   }
 });
 
-function startNearbySearch(){
+function startNearbyMap(){
   if (!navigator.geolocation) {
-    showStatus('Il tuo browser non supporta la geolocalizzazione. Prova a cercare un indirizzo qui sopra.');
+    alert('Il tuo browser non supporta la geolocalizzazione. Prova a esplorare una città dal campo di ricerca qui sotto.');
     return;
   }
   setLoading(true);
   navigator.geolocation.getCurrentPosition(
-    pos => runSearch(pos.coords.latitude, pos.coords.longitude),
+    pos => {
+      setLoading(false);
+      openCityMap(pos.coords.latitude, pos.coords.longitude, 'Vicino a te', 17, 1200);
+    },
     err => {
       setLoading(false);
-      showStatus('Non riesco ad accedere alla posizione (' + err.message + '). Prova a cercare un indirizzo.');
+      alert('Non riesco ad accedere alla posizione (' + err.message + '). Prova a esplorare una città dal campo di ricerca qui sotto.');
     },
     { enableHighAccuracy:true, timeout:10000 }
   );
@@ -532,11 +532,6 @@ function setLoading(isLoading){
   tapHint.textContent = isLoading
     ? 'Cerco intorno a te…'
     : "Scopri cosa c'è intorno a te";
-  if (isLoading) showStatus('Cerco chiese, palazzi e monumenti nei dintorni…');
-}
-
-function showStatus(text){
-  resultsEl.innerHTML = '<div class="results-status">' + text + '</div>';
 }
 
 function haversine(lat1, lon1, lat2, lon2){
@@ -564,63 +559,75 @@ async function fetchWiki(lang, lat, lon, radius, limit){
   return data.query && data.query.pages ? Object.values(data.query.pages) : [];
 }
 
-async function runSearch(lat, lon){
-  try {
-    let pages = await fetchWiki('it', lat, lon);
-    if (pages.length === 0) pages = await fetchWiki('en', lat, lon);
-
-    if (pages.length === 0) {
-      setLoading(false);
-      showStatus('Non ho trovato nulla di catalogato entro 1,5 km da qui. Prova a spostarti verso un centro storico o un monumento noto.');
-      return;
-    }
-
-    const items = pages
-      .filter(p => p.coordinates && p.coordinates[0])
-      .map(p => ({
-        title: p.title,
-        extract: p.extract || '',
-        thumb: p.thumbnail ? p.thumbnail.source : null,
-        dist: haversine(lat, lon, p.coordinates[0].lat, p.coordinates[0].lon),
-        url: 'https://it.wikipedia.org/?curid=' + p.pageid
-      }))
-      .sort((a,b) => a.dist - b.dist);
-
-    currentItems = items;
-    renderResults(items);
-  } catch (e) {
-    setLoading(false);
-    showStatus('Qualcosa è andato storto nella ricerca. Riprova tra poco.');
-  }
+async function fetchWikiItems(lat, lon, radius){
+  let pages = await fetchWiki('it', lat, lon, radius, 40);
+  if (pages.length === 0) pages = await fetchWiki('en', lat, lon, radius, 40);
+  return pages
+    .filter(p => p.coordinates && p.coordinates[0])
+    .map(p => ({
+      title: p.title,
+      extract: p.extract || '',
+      thumb: p.thumbnail ? p.thumbnail.source : null,
+      lat: p.coordinates[0].lat,
+      lon: p.coordinates[0].lon,
+      dist: haversine(lat, lon, p.coordinates[0].lat, p.coordinates[0].lon),
+      url: 'https://it.wikipedia.org/?curid=' + p.pageid,
+      source: 'wikipedia'
+    }));
 }
 
-function renderResults(items){
-  setLoading(false);
+/* ---------- seconda fonte: OpenStreetMap (Overpass) ---------- */
+/* Copre molto meglio castelli, rovine, monumenti minori che Wikipedia spesso non cataloga. */
+const OSM_TYPE_LABELS = {
+  castle:'Castello', fort:'Fortezza', fortress:'Fortezza', monument:'Monumento',
+  memorial:'Monumento commemorativo', ruins:'Rovine', archaeological_site:'Sito archeologico',
+  city_gate:'Porta storica', wayside_cross:'Croce votiva', wayside_shrine:'Edicola votiva',
+  tower:'Torre storica', manor:'Villa storica', palace:'Palazzo storico',
+  church:'Chiesa', cathedral:'Cattedrale', chapel:'Cappella', monastery:'Monastero',
+  archway:'Arco storico', citywalls:'Mura storiche'
+};
 
-  resultsEl.innerHTML = items.map((it, i) => `
-    <div class="card">
-      <div class="card-meta">a ${formatDist(it.dist)} da te</div>
-      <h2 class="card-title">${escapeHtml(it.title)}</h2>
-      <div class="card-body">
-        ${it.thumb ? `<img class="card-thumb" src="${it.thumb}" alt="${escapeHtml(it.title)}">` : ''}
-        <p class="card-text">${escapeHtml(it.extract) || 'Nessuna descrizione disponibile.'}</p>
-      </div>
-      <div class="card-actions">
-        <a href="${it.url}" target="_blank" rel="noopener">Leggi su Wikipedia</a>
-        <button class="ai-btn" data-index="${i}">✨ Racconto AI</button>
-      </div>
-      <div class="ai-story-slot" data-slot="${i}"></div>
-    </div>
-  `).join('');
+function osmLabel(tags){
+  if (tags.historic && OSM_TYPE_LABELS[tags.historic]) return OSM_TYPE_LABELS[tags.historic];
+  if (tags.historic) return 'Sito storico';
+  if (tags.tourism === 'artwork') return "Opera d'arte pubblica";
+  if (tags.amenity === 'place_of_worship') return 'Luogo di culto';
+  return 'Punto di interesse';
 }
 
-resultsEl.addEventListener('click', async (e) => {
-  const btn = e.target.closest('.ai-btn');
-  if (!btn) return;
-  const item = currentItems[btn.dataset.index];
-  if (!item) return;
-  await generateStory(item, btn, resultsEl);
-});
+async function fetchOverpassItems(lat, lon, radius){
+  const query = `[out:json][timeout:25];(`
+    + `node["historic"](around:${radius},${lat},${lon});`
+    + `way["historic"](around:${radius},${lat},${lon});`
+    + `node["tourism"="artwork"](around:${radius},${lat},${lon});`
+    + `node["amenity"="place_of_worship"](around:${radius},${lat},${lon});`
+    + `);out center tags;`;
+
+  const res = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    body: 'data=' + encodeURIComponent(query)
+  });
+  const data = await res.json();
+
+  return (data.elements || [])
+    .map(el => {
+      const elLat = el.lat != null ? el.lat : (el.center && el.center.lat);
+      const elLon = el.lon != null ? el.lon : (el.center && el.center.lon);
+      const tags = el.tags || {};
+      const name = tags.name || tags['name:it'];
+      if (elLat == null || elLon == null || !name) return null; // scarto i punti senza nome
+      return {
+        title: name,
+        extract: osmLabel(tags),
+        thumb: null,
+        lat: elLat, lon: elLon,
+        dist: haversine(lat, lon, elLat, elLon),
+        url: `https://www.openstreetmap.org/${el.type}/${el.id}`,
+        source: 'osm'
+      };
+    })
+    .filter(Boolean);
+}
 
 async function generateStory(item, btn, container){
   btn.disabled = true;
@@ -661,7 +668,7 @@ function goldIcon(){
   return L.divIcon({ className:'', html:'<div class="map-marker"></div>', iconSize:[16,16] });
 }
 
-async function openCityMap(lat, lon, label, zoom){
+async function openCityMap(lat, lon, label, zoom, radius){
   zoom = zoom || 16;
   document.getElementById('mapTitle').textContent = label || 'Esplora';
   mapSectionEl.classList.add('open');
@@ -671,44 +678,41 @@ async function openCityMap(lat, lon, label, zoom){
   leafletMap.setView([lat, lon], zoom);
   setTimeout(() => leafletMap.invalidateSize(), 200);
 
-  await loadMapArea(lat, lon);
+  await loadMapArea(lat, lon, radius);
 }
 
-async function loadMapArea(lat, lon){
+async function loadMapArea(lat, lon, radius){
+  radius = radius || 2500;
   refetchBtn.classList.remove('show');
-  mapInfoEl.innerHTML = '<div class="results-status">Cerco opere in quest\'area…</div>';
+  mapInfoEl.innerHTML = '<div class="results-status">Cerco chiese, monumenti e castelli in quest\'area…</div>';
 
-  try {
-    let pages = await fetchWiki('it', lat, lon, 2500, 40);
-    if (pages.length === 0) pages = await fetchWiki('en', lat, lon, 2500, 40);
+  const [wikiResult, osmResult] = await Promise.allSettled([
+    fetchWikiItems(lat, lon, radius),
+    fetchOverpassItems(lat, lon, radius)
+  ]);
 
-    markersLayer.clearLayers();
-    mapItems = pages
-      .filter(p => p.coordinates && p.coordinates[0])
-      .map(p => ({
-        title: p.title,
-        extract: p.extract || '',
-        thumb: p.thumbnail ? p.thumbnail.source : null,
-        lat: p.coordinates[0].lat,
-        lon: p.coordinates[0].lon,
-        dist: haversine(lat, lon, p.coordinates[0].lat, p.coordinates[0].lon),
-        url: 'https://it.wikipedia.org/?curid=' + p.pageid
-      }));
+  const wikiItems = wikiResult.status === 'fulfilled' ? wikiResult.value : [];
+  const osmItemsRaw = osmResult.status === 'fulfilled' ? osmResult.value : [];
 
-    if (mapItems.length === 0) {
-      mapInfoEl.innerHTML = '<div class="results-status">Nessuna opera catalogata trovata qui. Prova a spostare la mappa verso il centro storico.</div>';
-      return;
-    }
+  // scarto i punti OSM troppo vicini a uno già trovato su Wikipedia (stesso luogo)
+  const osmItems = osmItemsRaw.filter(o =>
+    !wikiItems.some(w => haversine(o.lat, o.lon, w.lat, w.lon) < 40)
+  );
 
-    mapItems.forEach((it, i) => {
-      const marker = L.marker([it.lat, it.lon], { icon: goldIcon() }).addTo(markersLayer);
-      marker.on('click', () => showMapItem(i));
-    });
+  markersLayer.clearLayers();
+  mapItems = [...wikiItems, ...osmItems].sort((a, b) => a.dist - b.dist);
 
-    mapInfoEl.innerHTML = `<div class="results-status">${mapItems.length} opere trovate — tocca un punto dorato sulla mappa.</div>`;
-  } catch (e) {
-    mapInfoEl.innerHTML = '<div class="results-status">Ricerca non riuscita. Riprova tra poco.</div>';
+  if (mapItems.length === 0) {
+    mapInfoEl.innerHTML = '<div class="results-status">Non ho trovato nulla di catalogato qui. Prova a spostarti verso un centro storico.</div>';
+    return;
   }
+
+  mapItems.forEach((it, i) => {
+    const marker = L.marker([it.lat, it.lon], { icon: goldIcon() }).addTo(markersLayer);
+    marker.on('click', () => showMapItem(i));
+  });
+
+  mapInfoEl.innerHTML = `<div class="results-status">${mapItems.length} punti trovati — tocca un punto dorato sulla mappa.</div>`;
 }
 
 function showMapItem(index){
@@ -724,7 +728,7 @@ function showMapItem(index){
         <p class="card-text">${escapeHtml(it.extract) || 'Nessuna descrizione disponibile.'}</p>
       </div>
       <div class="card-actions">
-        <a href="${it.url}" target="_blank" rel="noopener">Leggi su Wikipedia</a>
+        <a href="${it.url}" target="_blank" rel="noopener">${it.source === 'osm' ? 'Vedi su OpenStreetMap' : 'Leggi su Wikipedia'}</a>
         <button class="ai-btn" data-index="${index}">✨ Racconto AI</button>
       </div>
       <div class="ai-story-slot" data-slot="${index}"></div>
