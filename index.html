@@ -32,8 +32,8 @@
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:var(--parchment);
-    color:var(--ink);
+    background:var(--dusk);
+    color:var(--cream);
     font-family:'Archivo',sans-serif;
     -webkit-font-smoothing:antialiased;
   }
@@ -91,23 +91,22 @@
     height:204px;
     object-fit:contain;
     margin:0 auto 14px;
-    padding:6px;
-    border:1px solid rgba(107,87,56,0.35);
-    background:rgba(255,252,240,0.25);
-    mix-blend-mode:multiply;
-    filter:sepia(12%) contrast(104%);
+    padding:8px;
+    border:1.5px solid var(--gold);
+    background:var(--dusk);
+    filter:sepia(10%) contrast(104%);
     cursor:pointer;
     transition:transform 0.2s ease, box-shadow 0.2s ease, opacity 0.15s ease;
     color:transparent;
     box-shadow:
-      0 0 0 5px rgba(255,252,240,0.4),
+      0 0 0 5px rgba(22,33,28,0.85),
       0 10px 24px -10px rgba(28,23,16,0.55);
   }
   .hero-emblem:hover{
     opacity:0.9;
     transform:translateY(-2px);
     box-shadow:
-      0 0 0 5px rgba(255,252,240,0.45),
+      0 0 0 5px rgba(22,33,28,0.9),
       0 14px 28px -10px rgba(28,23,16,0.6);
   }
   .hero-emblem:active{ transform:translateY(0) scale(0.98); }
@@ -206,11 +205,12 @@
     font-size:1.3rem;
     font-weight:500;
     margin:0;
+    color:var(--cream);
   }
   .map-header button{
     background:none;
     border:none;
-    color:var(--patina);
+    color:#B7AE97;
     text-decoration:underline;
     text-underline-offset:3px;
     font-family:'Archivo',sans-serif;
@@ -265,16 +265,18 @@
   }
   .results-status{
     text-align:center;
-    color:var(--patina);
+    color:#B7AE97;
     font-size:0.95rem;
     padding:30px 10px;
     line-height:1.6;
   }
   .card{
-    border-top:1px solid var(--gold);
-    padding:22px 2px 26px;
+    background:var(--parchment);
+    border-top:3px solid var(--gold);
+    padding:22px 20px 26px;
+    box-shadow:0 12px 26px -16px rgba(0,0,0,0.5);
   }
-  .card + .card{ border-top:1px solid #CBC0A0; }
+  .card + .card{ margin-top:16px; border-top:3px solid var(--gold); }
   .card-meta{
     font-size:0.8rem;
     color:var(--patina);
@@ -378,9 +380,10 @@
     line-height:1.5;
   }
   .photo-card{
-    border-top:1px solid var(--gold);
-    padding:22px 2px 26px;
+    border-top:3px solid var(--gold);
+    padding:22px 20px 26px;
     background:var(--parchment-dim);
+    box-shadow:0 12px 26px -16px rgba(0,0,0,0.5);
   }
   .photo-card img{
     width:100%;
@@ -397,10 +400,10 @@
   footer{
     text-align:center;
     font-size:0.78rem;
-    color:var(--patina);
+    color:#8A9188;
     padding:0 20px 40px;
   }
-  footer a{ color:var(--patina); }
+  footer a{ color:#8A9188; }
 
   @media (prefers-reduced-motion: reduce){
     .hero-emblem{ transition:none; }
@@ -461,7 +464,7 @@
        src="vitruvian.jpg"
        alt="Uomo Vitruviano, Leonardo da Vinci — tocca per cercare vicino a te"
        role="button" tabindex="0">
-  <p class="tap-hint" id="tapHint">Tocca l'Uomo Vitruviano per scoprire cosa c'è intorno a te</p>
+  <p class="tap-hint" id="tapHint">Scopri cosa c'è intorno a te</p>
   <button class="manual-link" id="manualToggle">Esplora una città</button>
   <div class="manual-form" id="manualForm">
     <input type="text" id="manualQuery" placeholder="Città, piazza, quartiere…">
@@ -590,7 +593,7 @@ function setLoading(isLoading){
   heroEmblem.style.cursor = isLoading ? 'progress' : 'pointer';
   tapHint.textContent = isLoading
     ? 'Cerco intorno a te…'
-    : "Tocca l'Uomo Vitruviano per scoprire cosa c'è intorno a te";
+    : "Scopri cosa c'è intorno a te";
   if (isLoading) showStatus('Cerco chiese, palazzi e monumenti nei dintorni…');
 }
 
@@ -704,9 +707,9 @@ async function generateStory(item, btn, container){
 
 /* ================= MAPPA CITTÀ ================= */
 
-function ensureMap(lat, lon){
+function ensureMap(lat, lon, zoom){
   if (leafletMap) return;
-  leafletMap = L.map('map', { zoomControl:true }).setView([lat, lon], 16);
+  leafletMap = L.map('map', { zoomControl:true }).setView([lat, lon], zoom || 16);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom:19
@@ -721,12 +724,13 @@ function goldIcon(){
 }
 
 async function openCityMap(lat, lon, label, zoom){
+  zoom = zoom || 16;
   document.getElementById('mapTitle').textContent = label || 'Esplora';
   mapSectionEl.classList.add('open');
   mapSectionEl.scrollIntoView({ behavior:'smooth', block:'start' });
 
-  ensureMap(lat, lon);
-  leafletMap.setView([lat, lon], zoom || 16);
+  ensureMap(lat, lon, zoom);
+  leafletMap.setView([lat, lon], zoom);
   setTimeout(() => leafletMap.invalidateSize(), 200);
 
   await loadMapArea(lat, lon);
@@ -846,25 +850,17 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
-/* ================= APERTURA DA LINK ESTERNO =================
-   Esempio: cicerone-rho.vercel.app/?city=Cefalù&lat=38.0396&lon=14.0217&zoom=14
-   Apre subito la mappa della città e cerca le opere, senza toccare nulla.
-   Funziona anche con ?city=Noto da solo: in quel caso cerca il nome su OpenStreetMap. */
-(function openFromLink(){
-  const q = new URLSearchParams(location.search);
-  const lat = parseFloat(q.get('lat')), lon = parseFloat(q.get('lon'));
-  const city = q.get('city') || q.get('q');
-  const zoom = parseInt(q.get('zoom'), 10) || 15;
-
-  if (isFinite(lat) && isFinite(lon)) {
-    openCityMap(lat, lon, city || 'Esplora', zoom);
-    return;
-  }
-  if (city) {
-    const box = document.getElementById('manualQuery');
-    if (box) { box.value = city; manualForm.classList.add('open'); }
-    geocodeAndSearch();
-  }
+/* ---------- apertura da link esterno (es. app Sicilia) ---------- */
+/* Se arrivi qui con ?city=...&lat=...&lon=...&zoom=...&view=map (o anche solo
+   lat/lon), apro subito la mappa su quel punto invece di far ripartire da zero. */
+(function openFromLinkedApp(){
+  const p = new URLSearchParams(location.search);
+  const lat = parseFloat(p.get('lat'));
+  const lon = parseFloat(p.get('lon'));
+  if (isNaN(lat) || isNaN(lon)) return;
+  const zoom = parseInt(p.get('zoom'), 10) || 15;
+  const label = p.get('city') || 'Esplora';
+  openCityMap(lat, lon, label, zoom);
 })();
 </script>
 
