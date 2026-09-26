@@ -311,18 +311,6 @@
   .ai-btn:hover{ background:var(--gold); color:var(--dusk-deep); transform:translateY(-1px); }
   .ai-btn:active{ transform:translateY(0); }
   .ai-btn:disabled{ opacity:0.5; cursor:progress; }
-  .ai-story{
-    margin-top:12px;
-    padding-top:12px;
-    border-top:1px dotted #CBC0A0;
-    font-style:italic;
-  }
-  .ai-story-label{
-    font-size:0.78rem;
-    font-style:normal;
-    color:var(--patina);
-    margin-bottom:4px;
-  }
 
   /* ---------- PHOTO ---------- */
   .photo-row{
@@ -436,7 +424,7 @@
 </div>
 
 <footer>
-  Descrizioni da Wikipedia (CC BY-SA) e OpenStreetMap (© collaboratori) · nessuna chiamata a pagamento
+  Descrizioni da Wikipedia (CC BY-SA), OpenStreetMap (© collaboratori), geo.admin.ch, patrimonioculturale-er.it e Regione Liguria (CC BY 4.0) · nessuna chiamata a pagamento
 </footer>
 
 <script>
@@ -631,24 +619,196 @@ async function fetchOverpassItems(lat, lon, radius){
     .filter(Boolean);
 }
 
-async function generateStory(item, btn, container){
-  btn.disabled = true;
-  btn.textContent = 'Genero…';
+/* ---------- terza fonte: Svizzera (geo.admin.ch, KGS-Inventar) ---------- */
+/* Inventario federale dei beni culturali protetti di importanza nazionale.
+   Uso l'API STAC (standard, moderna): restituisce GeoJSON già in WGS84,
+   niente conversione di coordinate da fare a mano. */
+
+function isInSwitzerland(lat, lon){
+  return lat >= 45.8 && lat <= 47.9 && lon >= 5.9 && lon <= 10.6;
+}
+
+async function fetchSwissHeritageItems(lat, lon, radius){
+  if (!isInSwitzerland(lat, lon)) return [];
   try {
-    const r = await fetch('/api/enrich', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: item.title, extract: item.extract })
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || 'Errore');
-    const slot = container.querySelector(`.ai-story-slot[data-slot="${btn.dataset.index}"]`);
-    slot.innerHTML = `<div class="ai-story"><div class="ai-story-label">Racconto AI</div>${escapeHtml(data.story)}</div>`;
-    btn.remove();
-  } catch (err) {
-    btn.disabled = false;
-    btn.textContent = '✨ Racconto AI';
-    alert('Non sono riuscito a generare il racconto. Riprova.');
+    const dLat = radius / 111320;
+    const dLon = radius / (111320 * Math.cos(lat * Math.PI / 180));
+    const bbox = `${lon - dLon},${lat - dLat},${lon + dLon},${lat + dLat}`;
+
+    const url = 'https://data.geo.admin.ch/api/stac/v0.9/collections/ch.babs.kulturgueter/items'
+      + '?bbox=' + encodeURIComponent(bbox)
+      + '&limit=100';
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    return (data.features || [])
+      .map(f => {
+        const geom = f.geometry;
+        if (!geom || !geom.coordinates) return null;
+        let c = geom.coordinates;
+        while (Array.isArray(c[0])) c = c[0];
+        const [fLon, fLat] = c;
+        const p = f.properties || {};
+        const title = p.title || p.bezeichnung || p.label || p.objektname || p.name
+          || 'Bene culturale protetto (KGS)';
+        return {
+          title,
+          extract: 'Bene culturale protetto di importanza nazionale (Inventario KGS, Confederazione Svizzera).',
+          thumb: null,
+          lat: fLat, lon: fLon,
+          dist: haversine(lat, lon, fLat, fLon),
+          url: 'https://map.geo.admin.ch/?lang=it&layers=ch.babs.kulturgueter',
+          source: 'swiss'
+        };
+      })
+      .filter(Boolean);
+  } catch (e) {
+    return []; // se il servizio svizzero non risponde, si continua con le altre fonti
+  }
+}
+
+function shareItemStory(item){
+  const text = `Raccontami una curiosità su "${item.title}".`;
+  if (navigator.share) {
+    navigator.share({ title: 'Cicerone', text }).catch(() => {});
+  } else {
+    window.open(PROJECT_CHAT_URL, '_blank');
+    alert('Copia questo testo e incollalo in una nuova chat del progetto:\n\n' + text);
+  }
+}
+
+/* ---------- quarta fonte: Emilia-Romagna (patrimonioculturale-er.it, WFS) ---------- */
+/* Portale del Segretariato Regionale del Ministero della Cultura per l'Emilia-Romagna:
+   ~9.200 beni architettonici tutelati. Il nome esatto del layer WFS non è documentato
+   pubblicamente, quindi lo scopriamo da soli chiedendo al servizio le sue "capacità". */
+
+const ER_WFS_BASE = 'https://www.patrimonioculturale-er.it/wfs';
+let erLayerNameCache = null;
+
+function isInEmiliaRomagna(lat, lon){
+  return lat >= 43.7 && lat <= 45.2 && lon >= 9.0 && lon <= 12.9;
+}
+
+async function getErLayerName(){
+  if (erLayerNameCache) return erLayerNameCache;
+  const res = await fetch(ER_WFS_BASE + '?service=WFS&version=2.0.0&request=GetCapabilities');
+  const text = await res.text();
+  const xml = new DOMParser().parseFromString(text, 'text/xml');
+  const names = Array.from(xml.getElementsByTagName('Name')).map(n => n.textContent);
+  erLayerNameCache = names.find(n => /architett|beni.?cultural|patrimonio/i.test(n)) || names[0] || null;
+  return erLayerNameCache;
+}
+
+async function fetchEmiliaRomagnaHeritageItems(lat, lon, radius){
+  if (!isInEmiliaRomagna(lat, lon)) return [];
+  try {
+    const typeName = await getErLayerName();
+    if (!typeName) return [];
+
+    const dLat = radius / 111320;
+    const dLon = radius / (111320 * Math.cos(lat * Math.PI / 180));
+    const bbox = `${lon - dLon},${lat - dLat},${lon + dLon},${lat + dLat},EPSG:4326`;
+
+    const url = ER_WFS_BASE
+      + '?service=WFS&version=2.0.0&request=GetFeature'
+      + '&typeNames=' + encodeURIComponent(typeName)
+      + '&outputFormat=application/json'
+      + '&srsName=EPSG:4326'
+      + '&bbox=' + encodeURIComponent(bbox);
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    return (data.features || [])
+      .map(f => {
+        const geom = f.geometry;
+        if (!geom || !geom.coordinates) return null;
+        let c = geom.coordinates;
+        while (Array.isArray(c[0])) c = c[0];
+        const [fLon, fLat] = c;
+        const p = f.properties || {};
+        const title = p.denominazione || p.nome || p.toponimo || p.oggetto || 'Bene architettonico tutelato';
+        return {
+          title,
+          extract: 'Bene architettonico tutelato (patrimonio culturale dell\'Emilia-Romagna, Ministero della Cultura).',
+          thumb: null,
+          lat: fLat, lon: fLon,
+          dist: haversine(lat, lon, fLat, fLon),
+          url: 'https://www.patrimonioculturale-er.it/webgis/',
+          source: 'emilia-romagna'
+        };
+      })
+      .filter(Boolean);
+  } catch (e) {
+    return []; // se il servizio non risponde o rifiuta la richiesta, si continua con le altre fonti
+  }
+}
+
+/* ---------- quinta fonte: Liguria (siti archeologici, geoservizi.regione.liguria.it) ---------- */
+/* Dataset ufficiale "Siti Archeologici" di Regione Liguria (Settore Cultura e Spettacolo),
+   licenza CC BY 4.0. Endpoint confermato HTTPS; il nome esatto del layer, come per
+   l'Emilia-Romagna, viene scoperto chiedendo al servizio le sue "capacità". */
+
+const LIGURIA_WFS_BASE = 'https://geoservizi.regione.liguria.it/geoserver/M2343/wfs';
+let liguriaLayerNameCache = null;
+
+function isInLiguria(lat, lon){
+  return lat >= 43.75 && lat <= 44.7 && lon >= 7.4 && lon <= 10.1;
+}
+
+async function getLiguriaLayerName(){
+  if (liguriaLayerNameCache) return liguriaLayerNameCache;
+  const res = await fetch(LIGURIA_WFS_BASE + '?service=WFS&version=2.0.0&request=GetCapabilities');
+  const text = await res.text();
+  const xml = new DOMParser().parseFromString(text, 'text/xml');
+  const names = Array.from(xml.getElementsByTagName('Name')).map(n => n.textContent);
+  liguriaLayerNameCache = names.find(n => /archeolog|sito|beni/i.test(n)) || names[0] || null;
+  return liguriaLayerNameCache;
+}
+
+async function fetchLiguriaHeritageItems(lat, lon, radius){
+  if (!isInLiguria(lat, lon)) return [];
+  try {
+    const typeName = await getLiguriaLayerName();
+    if (!typeName) return [];
+
+    const dLat = radius / 111320;
+    const dLon = radius / (111320 * Math.cos(lat * Math.PI / 180));
+    const bbox = `${lon - dLon},${lat - dLat},${lon + dLon},${lat + dLat},EPSG:4326`;
+
+    const url = LIGURIA_WFS_BASE
+      + '?service=WFS&version=2.0.0&request=GetFeature'
+      + '&typeNames=' + encodeURIComponent(typeName)
+      + '&outputFormat=application/json'
+      + '&srsName=EPSG:4326'
+      + '&bbox=' + encodeURIComponent(bbox);
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    return (data.features || [])
+      .map(f => {
+        const geom = f.geometry;
+        if (!geom || !geom.coordinates) return null;
+        let c = geom.coordinates;
+        while (Array.isArray(c[0])) c = c[0];
+        const [fLon, fLat] = c;
+        const p = f.properties || {};
+        const title = p.denominazione || p.nome || p.toponimo || p.sito || 'Sito archeologico';
+        return {
+          title,
+          extract: 'Sito archeologico censito da Regione Liguria (Settore Cultura e Spettacolo).',
+          thumb: null,
+          lat: fLat, lon: fLon,
+          dist: haversine(lat, lon, fLat, fLon),
+          url: 'https://geoportal.regione.liguria.it/',
+          source: 'liguria'
+        };
+      })
+      .filter(Boolean);
+  } catch (e) {
+    return []; // se il servizio non risponde o rifiuta la richiesta, si continua con le altre fonti
   }
 }
 
@@ -688,21 +848,39 @@ async function loadMapArea(lat, lon, radius){
   refetchBtn.classList.remove('show');
   mapInfoEl.innerHTML = '<div class="results-status">Cerco chiese, monumenti e castelli in quest\'area…</div>';
 
-  const [wikiResult, osmResult] = await Promise.allSettled([
+  const [wikiResult, osmResult, swissResult, erResult, liguriaResult] = await Promise.allSettled([
     fetchWikiItems(lat, lon, radius),
-    fetchOverpassItems(lat, lon, radius)
+    fetchOverpassItems(lat, lon, radius),
+    fetchSwissHeritageItems(lat, lon, radius),
+    fetchEmiliaRomagnaHeritageItems(lat, lon, radius),
+    fetchLiguriaHeritageItems(lat, lon, radius)
   ]);
 
   const wikiItems = wikiResult.status === 'fulfilled' ? wikiResult.value : [];
   const osmItemsRaw = osmResult.status === 'fulfilled' ? osmResult.value : [];
+  const swissItemsRaw = swissResult.status === 'fulfilled' ? swissResult.value : [];
+  const erItemsRaw = erResult.status === 'fulfilled' ? erResult.value : [];
+  const liguriaItemsRaw = liguriaResult.status === 'fulfilled' ? liguriaResult.value : [];
 
-  // scarto i punti OSM troppo vicini a uno già trovato su Wikipedia (stesso luogo)
+  // scarto i punti di una fonte troppo vicini a uno già trovato da un'altra (stesso luogo)
   const osmItems = osmItemsRaw.filter(o =>
     !wikiItems.some(w => haversine(o.lat, o.lon, w.lat, w.lon) < 40)
   );
+  const foundSoFar1 = [...wikiItems, ...osmItems];
+  const swissItems = swissItemsRaw.filter(s =>
+    !foundSoFar1.some(w => haversine(s.lat, s.lon, w.lat, w.lon) < 40)
+  );
+  const foundSoFar2 = [...foundSoFar1, ...swissItems];
+  const erItems = erItemsRaw.filter(e =>
+    !foundSoFar2.some(w => haversine(e.lat, e.lon, w.lat, w.lon) < 40)
+  );
+  const foundSoFar3 = [...foundSoFar2, ...erItems];
+  const liguriaItems = liguriaItemsRaw.filter(l =>
+    !foundSoFar3.some(w => haversine(l.lat, l.lon, w.lat, w.lon) < 40)
+  );
 
   markersLayer.clearLayers();
-  mapItems = [...wikiItems, ...osmItems].sort((a, b) => a.dist - b.dist);
+  mapItems = [...foundSoFar3, ...liguriaItems].sort((a, b) => a.dist - b.dist);
 
   if (mapItems.length === 0) {
     mapInfoEl.innerHTML = '<div class="results-status">Non ho trovato nulla di catalogato qui. Prova a spostarti verso un centro storico.</div>';
@@ -714,14 +892,21 @@ async function loadMapArea(lat, lon, radius){
     marker.on('click', () => showMapItem(i));
   });
 
-  mapInfoEl.innerHTML = `<div class="results-status">${mapItems.length} punti trovati — tocca un punto dorato sulla mappa.</div>`;
+  showMapItem(0);
 }
 
 function showMapItem(index){
   const it = mapItems[index];
   leafletMap.panTo([it.lat, it.lon]);
 
+  const sourceLabel = it.source === 'osm' ? 'Vedi su OpenStreetMap'
+    : it.source === 'swiss' ? 'Vedi su geo.admin.ch'
+    : it.source === 'emilia-romagna' ? 'Vedi su patrimonioculturale-er.it'
+    : it.source === 'liguria' ? 'Vedi su geoportal.regione.liguria.it'
+    : 'Leggi su Wikipedia';
+
   mapInfoEl.innerHTML = `
+    <div class="results-status">${mapItems.length} punti trovati — tocca un punto dorato sulla mappa.</div>
     <div class="card">
       <div class="card-meta">a ${formatDist(it.dist)} dal centro cercato</div>
       <h2 class="card-title">${escapeHtml(it.title)}</h2>
@@ -730,15 +915,12 @@ function showMapItem(index){
         <p class="card-text">${escapeHtml(it.extract) || 'Nessuna descrizione disponibile.'}</p>
       </div>
       <div class="card-actions">
-        <a href="${it.url}" target="_blank" rel="noopener">${it.source === 'osm' ? 'Vedi su OpenStreetMap' : 'Leggi su Wikipedia'}</a>
-        <button class="ai-btn" data-index="${index}">✨ Racconto AI</button>
+        <a href="${it.url}" target="_blank" rel="noopener">${sourceLabel}</a>
+        <button class="ai-btn" id="shareStoryBtn">✨ Chiedi a Claude</button>
       </div>
-      <div class="ai-story-slot" data-slot="${index}"></div>
     </div>`;
 
-  mapInfoEl.querySelector('.ai-btn').addEventListener('click', (e) => {
-    generateStory(it, e.target, mapInfoEl);
-  });
+  mapInfoEl.querySelector('#shareStoryBtn').addEventListener('click', () => shareItemStory(it));
 
   mapInfoEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
@@ -747,6 +929,7 @@ refetchBtn.addEventListener('click', () => {
   const c = leafletMap.getCenter();
   loadMapArea(c.lat, c.lng);
 });
+
 
 document.getElementById('closeMapBtn').addEventListener('click', () => {
   mapSectionEl.classList.remove('open');
