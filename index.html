@@ -227,12 +227,45 @@
     border-radius:50%;
     box-shadow:0 0 0 2px var(--dusk-deep);
   }
+  .user-marker{
+    width:18px; height:18px;
+    background:#3B82C4;
+    border:3px solid var(--cream);
+    border-radius:50%;
+    box-shadow:0 0 0 2px var(--dusk-deep), 0 0 10px 2px rgba(59,130,196,0.6);
+  }
   .map-info{
     max-width:640px;
     margin:0 auto;
     padding:0 20px 60px;
   }
   .map-info .results-status{ padding:30px 10px; }
+  .map-list-items{
+    max-height:180px;
+    overflow-y:auto;
+    border:1px solid rgba(255,255,255,0.12);
+  }
+  .map-list-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:12px;
+    width:100%;
+    padding:10px 14px;
+    background:none;
+    border:none;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+    color:var(--cream);
+    font-family:'Archivo',sans-serif;
+    font-size:0.88rem;
+    text-align:left;
+    cursor:pointer;
+  }
+  .map-list-item:last-child{ border-bottom:none; }
+  .map-list-item:hover{ background:rgba(255,255,255,0.06); }
+  .map-list-item.active{ background:rgba(185,143,62,0.18); }
+  .map-list-title{ flex:1; }
+  .map-list-dist{ color:#8A9188; font-size:0.8rem; white-space:nowrap; }
 
   /* ---------- RESULTS ---------- */
   .results{
@@ -415,7 +448,10 @@
     <button id="refetchAreaBtn">Cerca opere in questa zona</button>
   </div>
   <div class="map-info" id="mapInfo">
-    <div class="results-status">Tocca un punto dorato sulla mappa per vedere di cosa si tratta.</div>
+    <div id="mapList"></div>
+    <div id="mapDetail">
+      <div class="results-status">Tocca un punto dorato sulla mappa per vedere di cosa si tratta.</div>
+    </div>
   </div>
 </div>
 
@@ -441,6 +477,8 @@ let leafletMap = null;
 let markersLayer = null;
 let mapItems = [];
 const mapInfoEl = document.getElementById('mapInfo');
+const mapListEl = document.getElementById('mapList');
+const mapDetailEl = document.getElementById('mapDetail');
 const mapSectionEl = document.getElementById('mapSection');
 const refetchBtn = document.getElementById('refetchAreaBtn');
 
@@ -814,6 +852,8 @@ async function fetchLiguriaHeritageItems(lat, lon, radius){
 
 /* ================= MAPPA CITTÀ ================= */
 
+let userMarker = null;
+
 function ensureMap(lat, lon, zoom){
   if (leafletMap) return;
   leafletMap = L.map('map', { zoomControl:true }).setView([lat, lon], zoom || 16);
@@ -830,6 +870,26 @@ function goldIcon(){
   return L.divIcon({ className:'', html:'<div class="map-marker"></div>', iconSize:[16,16] });
 }
 
+function userIcon(){
+  return L.divIcon({ className:'', html:'<div class="user-marker"></div>', iconSize:[18,18] });
+}
+
+function placeUserMarker(lat, lon){
+  if (userMarker) { userMarker.setLatLng([lat, lon]); return; }
+  userMarker = L.marker([lat, lon], { icon: userIcon(), zIndexOffset: 1000 })
+    .addTo(leafletMap)
+    .bindPopup('Sei qui');
+}
+
+function showUserLocation(){
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => placeUserMarker(pos.coords.latitude, pos.coords.longitude),
+    () => {}, // se negato o non disponibile, semplicemente non mostro il punto
+    { enableHighAccuracy:true, timeout:8000 }
+  );
+}
+
 async function openCityMap(lat, lon, label, zoom, radius){
   zoom = zoom || 16;
   document.getElementById('mapTitle').textContent = label || 'Esplora';
@@ -839,6 +899,7 @@ async function openCityMap(lat, lon, label, zoom, radius){
   ensureMap(lat, lon, zoom);
   leafletMap.setView([lat, lon], zoom);
   setTimeout(() => leafletMap.invalidateSize(), 200);
+  showUserLocation();
 
   await loadMapArea(lat, lon, radius);
 }
@@ -846,7 +907,8 @@ async function openCityMap(lat, lon, label, zoom, radius){
 async function loadMapArea(lat, lon, radius){
   radius = radius || 2500;
   refetchBtn.classList.remove('show');
-  mapInfoEl.innerHTML = '<div class="results-status">Cerco chiese, monumenti e castelli in quest\'area…</div>';
+  mapListEl.innerHTML = '';
+  mapDetailEl.innerHTML = '<div class="results-status">Cerco chiese, monumenti e castelli in quest\'area…</div>';
 
   const [wikiResult, osmResult, swissResult, erResult, liguriaResult] = await Promise.allSettled([
     fetchWikiItems(lat, lon, radius),
@@ -883,7 +945,7 @@ async function loadMapArea(lat, lon, radius){
   mapItems = [...foundSoFar3, ...liguriaItems].sort((a, b) => a.dist - b.dist);
 
   if (mapItems.length === 0) {
-    mapInfoEl.innerHTML = '<div class="results-status">Non ho trovato nulla di catalogato qui. Prova a spostarti verso un centro storico.</div>';
+    mapDetailEl.innerHTML = '<div class="results-status">Non ho trovato nulla di catalogato qui. Prova a spostarti verso un centro storico.</div>';
     return;
   }
 
@@ -892,12 +954,34 @@ async function loadMapArea(lat, lon, radius){
     marker.on('click', () => showMapItem(i));
   });
 
+  renderMapList();
   showMapItem(0);
+}
+
+function renderMapList(){
+  mapListEl.innerHTML = `
+    <div class="results-status">${mapItems.length} punti trovati — tocca un punto dorato sulla mappa o un elemento qui sotto.</div>
+    <div class="map-list-items">
+      ${mapItems.map((it, i) => `
+        <button class="map-list-item" data-index="${i}">
+          <span class="map-list-title">${escapeHtml(it.title)}</span>
+          <span class="map-list-dist">${formatDist(it.dist)}</span>
+        </button>
+      `).join('')}
+    </div>`;
+
+  mapListEl.querySelectorAll('.map-list-item').forEach(btn => {
+    btn.addEventListener('click', () => showMapItem(parseInt(btn.dataset.index, 10)));
+  });
 }
 
 function showMapItem(index){
   const it = mapItems[index];
   leafletMap.panTo([it.lat, it.lon]);
+
+  mapListEl.querySelectorAll('.map-list-item').forEach((btn, i) => {
+    btn.classList.toggle('active', i === index);
+  });
 
   const sourceLabel = it.source === 'osm' ? 'Vedi su OpenStreetMap'
     : it.source === 'swiss' ? 'Vedi su geo.admin.ch'
@@ -905,8 +989,7 @@ function showMapItem(index){
     : it.source === 'liguria' ? 'Vedi su geoportal.regione.liguria.it'
     : 'Leggi su Wikipedia';
 
-  mapInfoEl.innerHTML = `
-    <div class="results-status">${mapItems.length} punti trovati — tocca un punto dorato sulla mappa.</div>
+  mapDetailEl.innerHTML = `
     <div class="card">
       <div class="card-meta">a ${formatDist(it.dist)} dal centro cercato</div>
       <h2 class="card-title">${escapeHtml(it.title)}</h2>
@@ -920,9 +1003,9 @@ function showMapItem(index){
       </div>
     </div>`;
 
-  mapInfoEl.querySelector('#shareStoryBtn').addEventListener('click', () => shareItemStory(it));
+  mapDetailEl.querySelector('#shareStoryBtn').addEventListener('click', () => shareItemStory(it));
 
-  mapInfoEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  mapDetailEl.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 refetchBtn.addEventListener('click', () => {
